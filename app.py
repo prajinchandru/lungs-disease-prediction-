@@ -1,24 +1,32 @@
 import streamlit as st
-import tensorflow as tf
 import numpy as np
 from PIL import Image
 
-# Load trained model
-model = tf.keras.models.load_model("lung_disease_model.h5")
+# Safe TensorFlow import
+try:
+    import tensorflow as tf
+except Exception as e:
+    st.error("TensorFlow failed to load. Check requirements.txt")
+    st.stop()
 
-# Title
-st.title("Lung Disease Detection using AI")
+# Load model safely
+@st.cache_resource
+def load_model():
+    return tf.keras.models.load_model("lung_disease_model.h5")
+
+model = load_model()
+
+st.title("Lung Disease Detection AI")
 
 st.write("Upload a Chest X-ray image to detect Pneumonia.")
 
-# Upload image
 uploaded_file = st.file_uploader("Upload X-ray Image", type=["jpg","png","jpeg"])
 
-def preprocess_image(image):
+def preprocess(image):
     image = image.resize((224,224))
-    img_array = np.array(image)/255.0
-    img_array = np.expand_dims(img_array, axis=0)
-    return img_array
+    img = np.array(image)/255.0
+    img = np.expand_dims(img, axis=0)
+    return img
 
 if uploaded_file is not None:
 
@@ -26,37 +34,18 @@ if uploaded_file is not None:
 
     st.image(image, caption="Uploaded X-ray", use_column_width=True)
 
-    if st.button("Predict Disease"):
+    if st.button("Predict"):
 
-        img_array = preprocess_image(image)
+        img = preprocess(image)
 
-        prediction = model.predict(img_array)
+        prediction = model.predict(img)
 
-        confidence = prediction[0][0]
+        confidence = float(prediction[0][0])
 
         if confidence > 0.5:
             result = "Pneumonia Detected"
         else:
             result = "Normal Lung"
 
-        st.subheader("Prediction Result")
         st.success(result)
-
-        st.write("Confidence Score:", round(float(confidence)*100,2), "%")
-
-        # Simple report
-        report = f"""
-        AI Medical Report
-
-        Prediction: {result}
-        Confidence: {round(float(confidence)*100,2)}%
-
-        Recommendation:
-        Please consult a medical professional for confirmation.
-        """
-
-        st.download_button(
-            "Download Report",
-            report,
-            file_name="AI_Xray_Report.txt"
-        )
+        st.write("Confidence:", round(confidence*100,2), "%")
