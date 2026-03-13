@@ -1,26 +1,16 @@
 import streamlit as st
 import numpy as np
 from PIL import Image
+import tensorflow as tf
 
-# Safe TensorFlow import
-try:
-    import tensorflow as tf
-except Exception as e:
-    st.error("TensorFlow failed to load. Check requirements.txt")
-    st.stop()
+# Load model
+model = tf.keras.models.load_model("lung_disease_model.h5")
 
-# Load model safely
-@st.cache_resource
-def load_model():
-    return tf.keras.models.load_model("lung_disease_model.h5")
+st.title("Lung Disease Detection")
 
-model = load_model()
+st.write("Upload a Chest X-ray image")
 
-st.title("Lung Disease Detection AI")
-
-st.write("Upload a Chest X-ray image to detect Pneumonia.")
-
-uploaded_file = st.file_uploader("Upload X-ray Image", type=["jpg","png","jpeg"])
+uploaded_file = st.file_uploader("Upload Image", type=["jpg","jpeg","png"])
 
 def preprocess(image):
     image = image.resize((224,224))
@@ -32,7 +22,7 @@ if uploaded_file is not None:
 
     image = Image.open(uploaded_file)
 
-    st.image(image, caption="Uploaded X-ray", use_column_width=True)
+    st.image(image, caption="Uploaded Image", use_column_width=True)
 
     if st.button("Predict"):
 
@@ -40,12 +30,9 @@ if uploaded_file is not None:
 
         prediction = model.predict(img)
 
-        confidence = float(prediction[0][0])
-
-        if confidence > 0.5:
+        if prediction[0][0] > 0.5:
             result = "Pneumonia Detected"
         else:
             result = "Normal Lung"
 
         st.success(result)
-        st.write("Confidence:", round(confidence*100,2), "%")
